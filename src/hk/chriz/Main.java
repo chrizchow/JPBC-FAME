@@ -1,0 +1,47 @@
+package hk.chriz;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+
+public class Main {
+
+    // Attribute:
+    static String [] attrs = {"PID:0000000001", "MCC-MNC:525-05", "TS:1577867245"};
+    // Message:
+    static String message = "SUCI:00000000000000000000000000000000";
+
+    public static void main(String[] args) throws Exception {
+
+        FAME cpabe = new FAME();
+
+        // Initialisation:
+        Instant start_init = Instant.now();
+        FAMEMasterKey msk = cpabe.setup();
+        Instant end_init = Instant.now();
+        System.out.println("~~~~ Setup Complete ~~~~");
+        System.out.println("elapsed time:" + Duration.between(start_init, end_init) + "\n");
+
+        // Private Key Extraction / Generation:
+        Instant start_keygen = Instant.now();
+        FAMESecretKey skey = cpabe.keygen(msk, attrs);
+        Instant end_keygen = Instant.now();
+        System.out.println("~~~~ Keygen Complete ~~~~");
+        System.out.println("elapsed time: " + Duration.between(start_keygen, end_keygen) + "\n");
+
+        // Encryption:
+        Instant start_enc = Instant.now();
+        cpabe.encrypt("A and B and C", message.getBytes());
+        Instant end_enc = Instant.now();
+        System.out.println("~~~~ Encryption Complete ~~~~");
+        System.out.println("elapsed time: " + Duration.between(start_enc, end_enc) + "\n");
+
+        // Decryption:
+        Instant start_dec = Instant.now();
+        cpabe.decrypt();
+        Instant end_dec = Instant.now();
+        System.out.println("~~~~ Decryption Complete ~~~~");
+        System.out.println("elapsed time: " + Duration.between(start_dec, end_dec) + "\n");
+
+    }
+}
