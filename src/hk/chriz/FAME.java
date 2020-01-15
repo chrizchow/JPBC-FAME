@@ -23,7 +23,7 @@ public class FAME {
     public FAME() {
         // Load parameters to RAM:
         curveParams = PairingFactory.getPairing("a.properties");
-        PairingFactory.getInstance().setUsePBCWhenPossible(true);
+        //PairingFactory.getInstance().setUsePBCWhenPossible(true);
         pk = new FAMEPubKey(curveParams);
 
         // For convenience:
@@ -71,8 +71,8 @@ public class FAME {
 
         ArrayList<Element> e_gh_kA = new ArrayList<>();
         for (int i=0; i<DLIN; i++) {
-            Element kA = k.get(i).duplicate().mul(A.get(i)).add(k.get(DLIN)); // k[i] * A[i] + k[2]
-            e_gh_kA.add(e_gh.duplicate().powZn(kA));        // e_gh ^ (k[i] * A[i] + k[2])
+            Element kAk = k.get(i).duplicate().mul(A.get(i)).add(k.get(DLIN)); // k[i] * A[i] + k[2]
+            e_gh_kA.add(e_gh.duplicate().powZn(kAk));        // e_gh ^ (k[i] * A[i] + k[2])
         }
 
         // the public key
@@ -131,9 +131,11 @@ public class FAME {
                     System.out.println("input_for_hash: "+input_for_hash);
                     Element hashed = G.newElement();
                     elementFromString(hashed, input_for_hash);
-                    prod.mul(hashed.powZn(Br.get(l).duplicate().div(a_t)));     // H(y1t) ^ (b1*r1/at)
+                    Element br_at = Br.get(l).duplicate().div(a_t);
+                    prod.mul(hashed.powZn(br_at));     // H(y1t) ^ (b1*r1/at)
                 }
-                prod.mul(g.duplicate().powZn(sigma_attr.duplicate().div(a_t))); // g ^ (σ'/a_t)
+                Element sigma_attr_at = sigma_attr.duplicate().div(a_t);
+                prod.mul(g.duplicate().powZn(sigma_attr_at)); // prod = prod * (g ^ (σ'/a_t))
                 key.add(prod);
             }
             Element minus_sigma_attr = sigma_attr.duplicate().mul(-1);
@@ -179,6 +181,7 @@ public class FAME {
         // MSP:
         Map<String, int[]> msp = MSP.convert_policy_to_msp(policy_str);
         int num_cols = msp.size();      // FIXME: not always true
+        System.out.println("longest row is: "+num_cols);
 
         // pick randomness
         ArrayList<Element> s = new ArrayList<>();
@@ -209,6 +212,7 @@ public class FAME {
                 String input_for_hash2 = input_for_hash1 + l;
                 for (int t=0; t<DLIN; t++) {
                     String input_for_hash3 = input_for_hash2 + t;
+                    System.out.println("enc - input_for_hash3: "+input_for_hash3);
                     Element hashed_value = G.newElement();
                     elementFromString(hashed_value, input_for_hash3);
                     y.add(hashed_value);
@@ -223,19 +227,20 @@ public class FAME {
             String attr = entry.getKey();
             int [] row = entry.getValue();
             ArrayList<Element> ct = new ArrayList<>();
-            System.out.println("Attr: \""+attr+"\" / Row: "+ Arrays.toString(row));
+            String attr_stripped = attr;    // no need
             for (int l=0; l<DLIN+1; l++) {
                 Element prod = G.newOneElement();
                 int cols = row.length;
                 for (int t=0; t<DLIN; t++) {
-                    String input_for_hash = attr + l + t;
+                    String input_for_hash = attr_stripped + l + t;
+                    System.out.println("enc - input_for_hash: "+input_for_hash);
                     Element prod1 = G.newElement();
                     elementFromString(prod1, input_for_hash);
                     for (int j=0; j<cols; j++) {
                         Element rowj = Zr.newElement(row[j]);
                         prod1.mul(hash_table.get(j).get(l).get(t).duplicate().powZn(rowj));
                     }
-                    prod.mul(prod1.powZn(s.get(t)));
+                    prod.mul(prod1.duplicate().powZn(s.get(t))); // not necessary to duplicate
                 }
                 ct.add(prod);
             }
@@ -277,18 +282,18 @@ public class FAME {
             Element prod_G = G.newOneElement();
             for (String node : ctxt.C.keySet()) {
                 String attr = node;             // will be useful if MSP is complete
-                String attr_stripped = node;    // will be useful if MSP is complete
+                String attr_stripped = node;    // no need
                 prod_H.mul(key.K.get(attr_stripped).get(i));
                 prod_G.mul(ctxt.C.get(attr).get(i));
             }
             prod1_GT.mul(pk.pairing.pairing(key.Kp.get(i).duplicate().mul(prod_H), ctxt.C_0.get(i)));
             prod2_GT.mul(pk.pairing.pairing(prod_G, key.K_0.get(i)));
         }
-        Element plaintxt = ctxt.Cp.duplicate().mul(prod2_GT).div(prod1_GT);
+        Element aesKey = ctxt.Cp.duplicate().mul(prod2_GT).div(prod1_GT);
 
         // Use the AES key to decrypt the message:
-        System.out.println("Decryption AES Key: " + plaintxt.toBigInteger());
-        return AESCoder.decrypt(plaintxt.toBytes(), ctxt.aesBuf);
+        System.out.println("Decryption AES Key: " + aesKey.toBigInteger());
+        return AESCoder.decrypt(aesKey.toBytes(), ctxt.aesBuf);
     }
 
     private static void elementFromString(Element h, String s)
