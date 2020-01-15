@@ -3,11 +3,12 @@ package hk.chriz;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class Main {
 
     // Attribute:
-    static String [] attrs = {"PID:0000000001", "MCC-MNC:525-05", "TS:1577867245"};
+    static String [] attrs = {"A", "B"};
     // Message:
     static String message = "SUCI:00000000000000000000000000000000";
 
@@ -31,14 +32,15 @@ public class Main {
 
         // Encryption:
         Instant start_enc = Instant.now();
-        cpabe.encrypt("A and B and C", message.getBytes());
+        FAMECipherText cpt = cpabe.encrypt("A and B", message.getBytes());
         Instant end_enc = Instant.now();
         System.out.println("~~~~ Encryption Complete ~~~~");
         System.out.println("elapsed time: " + Duration.between(start_enc, end_enc) + "\n");
 
         // Decryption:
         Instant start_dec = Instant.now();
-        cpabe.decrypt();
+        byte[] decrypted = cpabe.decrypt(skey, cpt);
+        System.out.println(Arrays.toString(decrypted));
         Instant end_dec = Instant.now();
         System.out.println("~~~~ Decryption Complete ~~~~");
         System.out.println("elapsed time: " + Duration.between(start_dec, end_dec) + "\n");

@@ -3,12 +3,12 @@ package hk.chriz;
 import it.unisa.dia.gas.jpbc.Element;
 import it.unisa.dia.gas.jpbc.Field;
 import it.unisa.dia.gas.jpbc.Pairing;
-import it.unisa.dia.gas.plaf.jpbc.field.z.ZrField;
 import it.unisa.dia.gas.plaf.jpbc.pairing.PairingFactory;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,20 +17,20 @@ public class FAME {
     private Pairing curveParams;
     private static final int DLIN = 2;
 
-    public FAMEPubKey pub;
-    Field G, H, GT, Zp;
+    public FAMEPubKey pk;
+    Field G, H, GT, Zr;
 
     public FAME() {
         // Load parameters to RAM:
         curveParams = PairingFactory.getPairing("a.properties");
         PairingFactory.getInstance().setUsePBCWhenPossible(true);
-        pub = new FAMEPubKey(curveParams);
+        pk = new FAMEPubKey(curveParams);
 
         // For convenience:
         G = curveParams.getG1();
         H = curveParams.getG2();
         GT = curveParams.getGT();
-        Zp = curveParams.getZr();
+        Zr = curveParams.getZr();
 
     }
 
@@ -41,14 +41,14 @@ public class FAME {
         ArrayList<Element> A = new ArrayList<>();
         ArrayList<Element> B = new ArrayList<>();
         for (int i=0; i<DLIN; i++) {
-            A.add(Zp.newRandomElement());
-            B.add(Zp.newRandomElement());
+            A.add(Zr.newRandomElement());
+            B.add(Zr.newRandomElement());
         }
 
         // vector
         ArrayList<Element> k = new ArrayList<>();
         for (int i=0; i<DLIN+1; i++) {
-            k.add(Zp.newRandomElement());       // d1, d2, d3
+            k.add(Zr.newRandomElement());       // d1, d2, d3
         }
 
         // pick a random element from the two source groups and pair them
@@ -71,14 +71,14 @@ public class FAME {
 
         ArrayList<Element> e_gh_kA = new ArrayList<>();
         for (int i=0; i<DLIN; i++) {
-            Element kA = k.get(i).duplicate().mul(A.get(i)).add(k.get(DLIN));
-            e_gh_kA.add(e_gh.duplicate().powZn(kA));
+            Element kA = k.get(i).duplicate().mul(A.get(i)).add(k.get(DLIN)); // k[i] * A[i] + k[2]
+            e_gh_kA.add(e_gh.duplicate().powZn(kA));        // e_gh ^ (k[i] * A[i] + k[2])
         }
 
         // the public key
-        pub.h = h.duplicate();
-        pub.h_A = h_A;
-        pub.e_gh_kA = e_gh_kA;
+        pk.h = h.duplicate();
+        pk.h_A = h_A;
+        pk.e_gh_kA = e_gh_kA;
 
         // the master secret key
         FAMEMasterKey msk = new FAMEMasterKey();
@@ -96,9 +96,9 @@ public class FAME {
 
         // pick randomness
         ArrayList<Element> r = new ArrayList<>();
-        Element sum = Zp.newZeroElement();
+        Element sum = Zr.newZeroElement();
         for (int i=0; i<DLIN; i++) {
-            Element rand = Zp.newRandomElement();
+            Element rand = Zr.newRandomElement();
             r.add(rand);
             sum.add(rand);
         }
@@ -122,7 +122,7 @@ public class FAME {
         Element g = msk.g;
         for (String attr: attrs) {
             ArrayList<Element> key = new ArrayList<>();
-            Element sigma_attr = Zp.newRandomElement();
+            Element sigma_attr = Zr.newRandomElement();
             for (int t=0; t<DLIN; t++) {
                 Element prod = G.newOneElement();
                 Element a_t = A.get(t);
@@ -136,14 +136,15 @@ public class FAME {
                 prod.mul(g.duplicate().powZn(sigma_attr.duplicate().div(a_t))); // g ^ (σ'/a_t)
                 key.add(prod);
             }
-            key.add(g.duplicate().powZn(Zp.newZeroElement().sub(sigma_attr))); // g ^ (-σ)
+            Element minus_sigma_attr = sigma_attr.duplicate().mul(-1);
+            key.add(g.duplicate().powZn(minus_sigma_attr)); // g ^ (-σ)
             K.put(attr, key);
         }
 
         // compute [k + VBr]_1
         ArrayList<Element> Kp = new ArrayList<>();
         ArrayList<Element> g_k = msk.g_k;
-        Element sigma = Zp.newRandomElement();
+        Element sigma = Zr.newRandomElement();
         for (int t=0; t<DLIN; t++) {
             Element prod = g_k.get(t).duplicate();
             Element a_t = A.get(t);
@@ -157,7 +158,8 @@ public class FAME {
             prod.mul(g.duplicate().powZn(sigma.duplicate().div(a_t)));
             Kp.add(prod);
         }
-        Kp.add(g_k.get(DLIN).duplicate().mul(g.duplicate().powZn(Zp.newZeroElement().sub(sigma)))); // g^d3 * g^(-σ)
+        Element minus_sigma = sigma.duplicate().mul(-1);
+        Kp.add(g_k.get(DLIN).duplicate().mul(g.duplicate().powZn(minus_sigma))); // g^d3 * g^(-σ)
 
         // return secret key
         FAMESecretKey skey = new FAMESecretKey();
@@ -169,23 +171,27 @@ public class FAME {
     }
 
     public FAMECipherText encrypt(String policy_str, byte[] plaintext) throws Exception {
+
         // generate intermediate AES key:
         Element msg = GT.newRandomElement();
+        System.out.println("Encryption AES Key: " + msg.toBigInteger());
+
+        // MSP:
         Map<String, int[]> msp = MSP.convert_policy_to_msp(policy_str);
         int num_cols = msp.size();      // FIXME: not always true
 
         // pick randomness
         ArrayList<Element> s = new ArrayList<>();
-        Element sum = Zp.newZeroElement();
+        Element sum = Zr.newZeroElement();
         for (int i=0; i<DLIN; i++) {
-            Element rand = Zp.newRandomElement();
+            Element rand = Zr.newRandomElement();
             s.add(rand);
             sum.add(rand);
         }
 
         // compute the [As]_2 term
         ArrayList<Element> C_0 = new ArrayList<>();
-        ArrayList<Element> h_A = pub.h_A;
+        ArrayList<Element> h_A = pk.h_A;
         for (int i=0; i<DLIN; i++) {
             C_0.add(h_A.get(i).duplicate().powZn(s.get(i)));
         }
@@ -217,6 +223,7 @@ public class FAME {
             String attr = entry.getKey();
             int [] row = entry.getValue();
             ArrayList<Element> ct = new ArrayList<>();
+            System.out.println("Attr: \""+attr+"\" / Row: "+ Arrays.toString(row));
             for (int l=0; l<DLIN+1; l++) {
                 Element prod = G.newOneElement();
                 int cols = row.length;
@@ -225,7 +232,8 @@ public class FAME {
                     Element prod1 = G.newElement();
                     elementFromString(prod1, input_for_hash);
                     for (int j=0; j<cols; j++) {
-                        prod1.mul(hash_table.get(j).get(l).get(t).duplicate().powZn(Zp.newElement(row[j])));
+                        Element rowj = Zr.newElement(row[j]);
+                        prod1.mul(hash_table.get(j).get(l).get(t).duplicate().powZn(rowj));
                     }
                     prod.mul(prod1.powZn(s.get(t)));
                 }
@@ -237,7 +245,7 @@ public class FAME {
         // compute the e(g, h)^(k^T As) . m term
         Element Cp = GT.newOneElement();
         for (int i=0; i<DLIN; i++) {
-            Cp.mul(pub.e_gh_kA.get(i).duplicate().powZn(s.get(i)));
+            Cp.mul(pk.e_gh_kA.get(i).duplicate().powZn(s.get(i)));
         }
         Cp.mul(msg);
 
@@ -252,8 +260,35 @@ public class FAME {
 
     }
 
-    public void decrypt() {
-        // TODO: waiting for implementation.
+    public byte[] decrypt(FAMESecretKey key, FAMECipherText ctxt) throws Exception {
+
+        for (String attr : ctxt.C.keySet()) {
+            if (!key.K.containsKey(attr)) {
+                System.err.println("Policy not satisfied. ("+attr+")");
+                System.exit(2);
+            }
+        }
+
+        // decrypt the intermediate AES key:
+        Element prod1_GT = GT.newOneElement();
+        Element prod2_GT = GT.newOneElement();
+        for (int i=0; i<DLIN+1; i++) {
+            Element prod_H = G.newOneElement();
+            Element prod_G = G.newOneElement();
+            for (String node : ctxt.C.keySet()) {
+                String attr = node;             // will be useful if MSP is complete
+                String attr_stripped = node;    // will be useful if MSP is complete
+                prod_H.mul(key.K.get(attr_stripped).get(i));
+                prod_G.mul(ctxt.C.get(attr).get(i));
+            }
+            prod1_GT.mul(pk.pairing.pairing(key.Kp.get(i).duplicate().mul(prod_H), ctxt.C_0.get(i)));
+            prod2_GT.mul(pk.pairing.pairing(prod_G, key.K_0.get(i)));
+        }
+        Element plaintxt = ctxt.Cp.duplicate().mul(prod2_GT).div(prod1_GT);
+
+        // Use the AES key to decrypt the message:
+        System.out.println("Decryption AES Key: " + plaintxt.toBigInteger());
+        return AESCoder.decrypt(plaintxt.toBytes(), ctxt.aesBuf);
     }
 
     private static void elementFromString(Element h, String s)
@@ -261,6 +296,34 @@ public class FAME {
         MessageDigest md = MessageDigest.getInstance("SHA-1");
         byte[] digest = md.digest(s.getBytes());
         h.setFromHash(digest, 0, digest.length);
+    }
+
+    public void printParameters(FAMEMasterKey msk, FAMESecretKey sk) {
+        if (pk != null) {
+            System.out.println("============ Public Key Parameters ==============");
+            System.out.println("h: "+ pk.h);
+            System.out.println("h_A: "+Arrays.toString(pk.h_A.toArray()));
+            System.out.println("e_gh_kA: "+Arrays.toString(pk.e_gh_kA.toArray()));
+            System.out.println("=================================================\n");
+        }
+        if (msk != null) {
+            System.out.println("============ Master Key Parameters ==============");
+            System.out.println("A: "+Arrays.toString(msk.A.toArray()));
+            System.out.println("B: "+Arrays.toString(msk.B.toArray()));
+            System.out.println("h: "+msk.h);
+            System.out.println("g: "+msk.g);
+            System.out.println("g_k: "+Arrays.toString(msk.g_k.toArray()));
+            System.out.println("=================================================\n");
+        }
+        if (sk != null) {
+            System.out.println("============ Secret Key Parameters ==============");
+            for (Map.Entry<String, ArrayList<Element>> node: sk.K.entrySet()) {
+                System.out.println("K (key: \""+node.getKey()+"\") - "+ Arrays.toString(node.getValue().toArray()));
+            }
+            System.out.println("K_0: "+ Arrays.toString(sk.K_0.toArray()));
+            System.out.println("Kp: "+ Arrays.toString(sk.Kp.toArray()));
+            System.out.println("=================================================\n");
+        }
     }
 
 }
