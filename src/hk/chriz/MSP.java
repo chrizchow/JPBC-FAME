@@ -13,17 +13,17 @@ public class MSP {
             {1,  1},
             {0, -1}};
 
-    /*
     private static final int [][] M3 = {
             {1,  1,  0},
             {0, -1,  1},
             {0,  0, -1}};
-     */
 
+    /*
     private static final int [][] M3 = {
             {1,  1,  1},
             {0,  0, -1},
             {0, -1}};
+     */
 
     private static final int [][] M4 = {
             {1,  1,  0,  0},
@@ -102,7 +102,7 @@ public class MSP {
         }
         Map<String, int[]> msp = new HashMap<>();
         for (int i=0; i<attrs.length; i++) {
-            System.out.println("\""+attrs[i]+ "\" -> " + Arrays.toString(cheatyMSPs[attrs.length][i]));
+            //System.out.println("\""+attrs[i]+ "\" -> " + Arrays.toString(cheatyMSPs[attrs.length][i]));
             msp.put(attrs[i], cheatyMSPs[attrs.length][i]);
         }
         return msp;

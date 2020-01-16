@@ -8,7 +8,7 @@ import java.util.Arrays;
 public class Main {
 
     // Attribute:
-    static String [] attrs = {"ONE", "TWO"};
+    static String [] attrs = {"ONE", "TWO", "THREE", "FOUR", "FIVE"};
     // Message:
     static String message = "SUCI:00000000000000000000000000000000";
 
@@ -32,7 +32,7 @@ public class Main {
 
         // Encryption:
         Instant start_enc = Instant.now();
-        FAMECipherText cpt = cpabe.encrypt("ONE and TWO", message.getBytes());
+        FAMECipherText cpt = cpabe.encrypt("ONE and TWO and THREE and FOUR and FIVE", message.getBytes());
         Instant end_enc = Instant.now();
         System.out.println("~~~~ Encryption Complete ~~~~");
         System.out.println("elapsed time: " + Duration.between(start_enc, end_enc) + "\n");
@@ -40,10 +40,19 @@ public class Main {
         // Decryption:
         Instant start_dec = Instant.now();
         byte[] decrypted = cpabe.decrypt(skey, cpt);
-        System.out.println(Arrays.toString(decrypted));
         Instant end_dec = Instant.now();
         System.out.println("~~~~ Decryption Complete ~~~~");
         System.out.println("elapsed time: " + Duration.between(start_dec, end_dec) + "\n");
+
+        // Verification of decryption:
+        String dec_message = new String(decrypted);
+        if (dec_message.equals(message)) {
+            System.out.println("~~~ Verification of Decryption Success ~~~ ");
+        } else {
+            System.err.println("=== Error: Decrypted text is not the same! ===");
+            System.err.println("Original:"+message);
+            System.err.println("Decrypted:"+dec_message);
+        }
 
     }
 }

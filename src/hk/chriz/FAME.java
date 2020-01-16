@@ -59,32 +59,25 @@ public class FAME {
         // compute the [A]_2 term
         ArrayList<Element> h_A = new ArrayList<>();
         for (int i=0; i<DLIN; i++) {
-            Element h_Ai = h.duplicate();
-            h_Ai.powZn(A.get(i));
-            h_A.add(h_Ai);
+            h_A.add(h.duplicate().powZn(A.get(i)));
         }
         h_A.add(h);       // chriz: should be useless
 
         // compute the e([k]_1, [A]_2) term
         ArrayList<Element> g_k = new ArrayList<>();
         for (int i=0; i<DLIN+1; i++) {
-            Element g_ki = g.duplicate();
-            g_ki.powZn(k.get(i));
-            g_k.add(g_ki);
+            g_k.add(g.duplicate().powZn(k.get(i)));
         }
 
         ArrayList<Element> e_gh_kA = new ArrayList<>();
         for (int i=0; i<DLIN; i++) {
-            Element kAk = k.get(i).duplicate();
-            kAk.mul(A.get(i));
-            kAk.add(k.get(DLIN));                   // k[i] * A[i] + k[2]
-            Element e_gh_kAk = e_gh.duplicate();
-            e_gh_kAk.powZn(kAk);
-            e_gh_kA.add(e_gh_kAk);                  // e_gh ^ (k[i] * A[i] + k[2])
+            Element kAk = k.get(i).duplicate().mul(A.get(i)).add(k.get(DLIN));  // k[i] * A[i] + k[2]
+            Element e_gh_kAk = e_gh.duplicate().powZn(kAk);                     // e_gh ^ (k[i] * A[i] + k[2])
+            e_gh_kA.add(e_gh_kAk);
         }
 
         // the public key
-        pk.h = h.duplicate();
+        pk.h = h;
         pk.h_A = h_A;
         pk.e_gh_kA = e_gh_kA;
 
@@ -141,7 +134,7 @@ public class FAME {
                 Element a_t = A.get(t);
                 for (int l=0; l<DLIN+1; l++) {
                     String input_for_hash = attr + l + t;
-                    System.out.println("input_for_hash: "+input_for_hash);
+                    //System.out.println("input_for_hash: "+input_for_hash);
                     Element hashed = G.newElement();
                     elementFromString(hashed, input_for_hash);  // H(y1t)
                     Element br_at = Br.get(l).duplicate();      // b1*r1
@@ -173,7 +166,7 @@ public class FAME {
             Element a_t = A.get(t);
             for (int l=0; l<DLIN+1; l++) {
                 String input_for_hash = "01" + l + t;
-                System.out.println("input_for_hash (01): "+input_for_hash);
+                //System.out.println("input_for_hash (01): "+input_for_hash);
                 Element hashed = G.newElement();
                 elementFromString(hashed, input_for_hash);
                 Element br_at = Br.get(l).duplicate();          // Br[l]
@@ -209,12 +202,12 @@ public class FAME {
 
         // generate intermediate AES key:
         Element msg = GT.newRandomElement();
-        System.out.println("Encryption AES Key: " + msg.toBigInteger());
+        //System.out.println("Encryption AES Key: " + msg.toBigInteger());
 
         // MSP:
         Map<String, int[]> msp = MSP.convert_policy_to_msp(policy_str);
         int num_cols = msp.size();      // FIXME: not always true
-        System.out.println("longest row is: "+num_cols);
+        //System.out.println("longest row is: "+num_cols);
 
         // pick randomness
         ArrayList<Element> s = new ArrayList<>();
@@ -249,7 +242,7 @@ public class FAME {
                 String input_for_hash2 = input_for_hash1 + l;
                 for (int t=0; t<DLIN; t++) {
                     String input_for_hash3 = input_for_hash2 + t;
-                    System.out.println("enc - input_for_hash3: "+input_for_hash3);
+                    //System.out.println("enc - input_for_hash3: "+input_for_hash3);
                     Element hashed_value = G.newElement();
                     elementFromString(hashed_value, input_for_hash3);
                     y.add(hashed_value);
@@ -270,7 +263,7 @@ public class FAME {
                 int cols = row.length;
                 for (int t=0; t<DLIN; t++) {
                     String input_for_hash = attr_stripped + l + t;
-                    System.out.println("enc - input_for_hash: "+input_for_hash);
+                    //System.out.println("enc - input_for_hash: "+input_for_hash);
                     Element prod1 = G.newElement();
                     elementFromString(prod1, input_for_hash);
                     for (int j=0; j<cols; j++) {
@@ -328,7 +321,7 @@ public class FAME {
                 String attr_stripped = node;    // no need
                 prod_H.mul(key.K.get(attr_stripped).get(i));
                 prod_G.mul(ctxt.C.get(attr).get(i));
-                System.out.println("attr_stripped=\""+attr_stripped+"\", i="+i);
+                //System.out.println("attr_stripped=\""+attr_stripped+"\", i="+i);
             }
             Element kp_prodH = key.Kp.get(i).duplicate();
             kp_prodH.mul(prod_H);
@@ -340,7 +333,7 @@ public class FAME {
         aesKey.div(prod1_GT);
 
         // Use the AES key to decrypt the message:
-        System.out.println("Decryption AES Key: " + aesKey.toBigInteger());
+        //System.out.println("Decryption AES Key: " + aesKey.toBigInteger());
         return AESCoder.decrypt(aesKey.toBytes(), ctxt.aesBuf);
     }
 
