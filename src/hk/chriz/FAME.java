@@ -59,20 +59,28 @@ public class FAME {
         // compute the [A]_2 term
         ArrayList<Element> h_A = new ArrayList<>();
         for (int i=0; i<DLIN; i++) {
-            h_A.add(h.duplicate().powZn(A.get(i)));
+            Element h_Ai = h.duplicate();
+            h_Ai.powZn(A.get(i));
+            h_A.add(h_Ai);
         }
         h_A.add(h);       // chriz: should be useless
 
         // compute the e([k]_1, [A]_2) term
         ArrayList<Element> g_k = new ArrayList<>();
         for (int i=0; i<DLIN+1; i++) {
-            g_k.add(g.duplicate().powZn(k.get(i)));
+            Element g_ki = g.duplicate();
+            g_ki.powZn(k.get(i));
+            g_k.add(g_ki);
         }
 
         ArrayList<Element> e_gh_kA = new ArrayList<>();
         for (int i=0; i<DLIN; i++) {
-            Element kAk = k.get(i).duplicate().mul(A.get(i)).add(k.get(DLIN)); // k[i] * A[i] + k[2]
-            e_gh_kA.add(e_gh.duplicate().powZn(kAk));        // e_gh ^ (k[i] * A[i] + k[2])
+            Element kAk = k.get(i).duplicate();
+            kAk.mul(A.get(i));
+            kAk.add(k.get(DLIN));                   // k[i] * A[i] + k[2]
+            Element e_gh_kAk = e_gh.duplicate();
+            e_gh_kAk.powZn(kAk);
+            e_gh_kA.add(e_gh_kAk);                  // e_gh ^ (k[i] * A[i] + k[2])
         }
 
         // the public key
@@ -104,16 +112,21 @@ public class FAME {
         }
 
         // compute the [Br]_2 term
+        // first compute just Br as it will be used later too
         ArrayList<Element> Br = new ArrayList<>();
         for (int i=0; i<DLIN; i++) {
-            Br.add(msk.B.get(i).duplicate().mul(r.get(i)));
+            Element Bri = msk.B.get(i).duplicate();
+            Bri.mul(r.get(i));
+            Br.add(Bri);
         }
         Br.add(sum);    // the last term is r1 + r2
 
         // now compute [Br]_2
         ArrayList<Element> K_0 = new ArrayList<>();
         for (int i=0; i<DLIN+1; i++) {
-            K_0.add(msk.h.duplicate().powZn(Br.get(i)));
+            Element hBr = msk.h.duplicate();
+            hBr.powZn(Br.get(i));
+            K_0.add(hBr);
         }
 
         // compute [W_1 Br]_1, ...
@@ -130,16 +143,24 @@ public class FAME {
                     String input_for_hash = attr + l + t;
                     System.out.println("input_for_hash: "+input_for_hash);
                     Element hashed = G.newElement();
-                    elementFromString(hashed, input_for_hash);
-                    Element br_at = Br.get(l).duplicate().div(a_t);
-                    prod.mul(hashed.powZn(br_at));     // H(y1t) ^ (b1*r1/at)
+                    elementFromString(hashed, input_for_hash);  // H(y1t)
+                    Element br_at = Br.get(l).duplicate();      // b1*r1
+                    br_at.div(a_t);                             // b1*r1/at
+                    hashed.powZn(br_at);                        // H(y1t) ^ (b1*r1/at)
+                    prod.mul(hashed);
                 }
-                Element sigma_attr_at = sigma_attr.duplicate().div(a_t);
-                prod.mul(g.duplicate().powZn(sigma_attr_at)); // prod = prod * (g ^ (σ'/a_t))
+                Element sigma_attr_at = sigma_attr.duplicate();
+                sigma_attr_at.div(a_t);                         // σ'/a_t
+                Element g_sigma_attr_at = g.duplicate();
+                g_sigma_attr_at.powZn(sigma_attr_at);           // g ^ (σ'/a_t)
+                prod.mul(g_sigma_attr_at);                      // prod *= (g ^ (σ'/a_t))
                 key.add(prod);
             }
-            Element minus_sigma_attr = sigma_attr.duplicate().mul(-1);
-            key.add(g.duplicate().powZn(minus_sigma_attr)); // g ^ (-σ)
+            Element minus_sigma_attr = sigma_attr.duplicate();
+            minus_sigma_attr.mul(-1);                           // -σ
+            Element g_minus_sigma = g.duplicate();
+            g_minus_sigma.powZn(minus_sigma_attr);              // g ^ (-σ)
+            key.add(g_minus_sigma);
             K.put(attr, key);
         }
 
@@ -155,13 +176,25 @@ public class FAME {
                 System.out.println("input_for_hash (01): "+input_for_hash);
                 Element hashed = G.newElement();
                 elementFromString(hashed, input_for_hash);
-                prod.mul(hashed.powZn(Br.get(l).duplicate().mul(a_t)));
+                Element br_at = Br.get(l).duplicate();          // Br[l]
+                br_at.div(a_t);                                 // Br[l] / a_t
+                hashed.powZn(br_at);                            // H(01lt) ^ (Br[l] / a_t)
+                prod.mul(hashed);                               // prod *= H(01lt) ^ (Br[l] / a_t)
             }
-            prod.mul(g.duplicate().powZn(sigma.duplicate().div(a_t)));
+            Element sigma_div_at = sigma.duplicate();
+            sigma_div_at.div(a_t);
+            Element g_pow_sigma_div_at = g.duplicate();
+            g_pow_sigma_div_at.powZn(sigma_div_at);
+            prod.mul(g_pow_sigma_div_at);
             Kp.add(prod);
         }
-        Element minus_sigma = sigma.duplicate().mul(-1);
-        Kp.add(g_k.get(DLIN).duplicate().mul(g.duplicate().powZn(minus_sigma))); // g^d3 * g^(-σ)
+        Element minus_sigma = sigma.duplicate();
+        minus_sigma.mul(-1);
+        Element g_minus_sigma = g.duplicate();
+        g_minus_sigma.powZn(minus_sigma);
+        Element g_k_DLIN = g_k.get(DLIN).duplicate();
+        g_k_DLIN.mul(g_minus_sigma);                    // g^d3 * g^(-σ)
+        Kp.add(g_k_DLIN);
 
         // return secret key
         FAMESecretKey skey = new FAMESecretKey();
@@ -196,9 +229,13 @@ public class FAME {
         ArrayList<Element> C_0 = new ArrayList<>();
         ArrayList<Element> h_A = pk.h_A;
         for (int i=0; i<DLIN; i++) {
-            C_0.add(h_A.get(i).duplicate().powZn(s.get(i)));
+            Element hAs = h_A.get(i).duplicate();
+            hAs.powZn(s.get(i));
+            C_0.add(hAs);
         }
-        C_0.add(h_A.get(DLIN).duplicate().powZn(sum));
+        Element hADLIN = h_A.get(DLIN).duplicate();
+        hADLIN.powZn(sum);
+        C_0.add(hADLIN);
 
         // compute the [(V^T As||U^T_2 As||...) M^T_i + W^T_i As]_1 terms
 
@@ -238,9 +275,13 @@ public class FAME {
                     elementFromString(prod1, input_for_hash);
                     for (int j=0; j<cols; j++) {
                         Element rowj = Zr.newElement(row[j]);
-                        prod1.mul(hash_table.get(j).get(l).get(t).duplicate().powZn(rowj));
+                        Element hash_table_jlt = hash_table.get(j).get(l).get(t).duplicate();
+                        hash_table_jlt.powZn(rowj);
+                        prod1.mul(hash_table_jlt);
                     }
-                    prod.mul(prod1.duplicate().powZn(s.get(t))); // not necessary to duplicate
+                    Element prod_pow_s = prod1.duplicate();
+                    prod_pow_s.powZn(s.get(t));
+                    prod.mul(prod_pow_s);
                 }
                 ct.add(prod);
             }
@@ -250,7 +291,9 @@ public class FAME {
         // compute the e(g, h)^(k^T As) . m term
         Element Cp = GT.newOneElement();
         for (int i=0; i<DLIN; i++) {
-            Cp.mul(pk.e_gh_kA.get(i).duplicate().powZn(s.get(i)));
+            Element e_gh_kA_pow_s = pk.e_gh_kA.get(i).duplicate();
+            e_gh_kA_pow_s.powZn(s.get(i));
+            Cp.mul(e_gh_kA_pow_s);
         }
         Cp.mul(msg);
 
@@ -285,11 +328,16 @@ public class FAME {
                 String attr_stripped = node;    // no need
                 prod_H.mul(key.K.get(attr_stripped).get(i));
                 prod_G.mul(ctxt.C.get(attr).get(i));
+                System.out.println("attr_stripped=\""+attr_stripped+"\", i="+i);
             }
-            prod1_GT.mul(pk.pairing.pairing(key.Kp.get(i).duplicate().mul(prod_H), ctxt.C_0.get(i)));
+            Element kp_prodH = key.Kp.get(i).duplicate();
+            kp_prodH.mul(prod_H);
+            prod1_GT.mul(pk.pairing.pairing(kp_prodH, ctxt.C_0.get(i)));
             prod2_GT.mul(pk.pairing.pairing(prod_G, key.K_0.get(i)));
         }
-        Element aesKey = ctxt.Cp.duplicate().mul(prod2_GT).div(prod1_GT);
+        Element aesKey = ctxt.Cp.duplicate();
+        aesKey.mul(prod2_GT);
+        aesKey.div(prod1_GT);
 
         // Use the AES key to decrypt the message:
         System.out.println("Decryption AES Key: " + aesKey.toBigInteger());
