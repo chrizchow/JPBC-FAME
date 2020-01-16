@@ -8,7 +8,7 @@ import java.util.Arrays;
 public class Main {
 
     // Attribute:
-    static String [] attrs = {"ONE", "TWO", "THREE", "FOUR", "FIVE"};
+    static String [] attrs = {"PID:0000000001", "MCC-MNC:525-05", "TS:1577867245"};
     // Message:
     static String message = "SUCI:00000000000000000000000000000000";
 
@@ -32,7 +32,7 @@ public class Main {
 
         // Encryption:
         Instant start_enc = Instant.now();
-        FAMECipherText cpt = cpabe.encrypt("ONE and TWO and THREE and FOUR and FIVE", message.getBytes());
+        FAMECipherText cpt = cpabe.encrypt(String.join(" and ", attrs), message.getBytes());
         Instant end_enc = Instant.now();
         System.out.println("~~~~ Encryption Complete ~~~~");
         System.out.println("elapsed time: " + Duration.between(start_enc, end_enc) + "\n");

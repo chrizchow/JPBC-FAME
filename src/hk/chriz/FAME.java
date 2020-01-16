@@ -108,8 +108,7 @@ public class FAME {
         // first compute just Br as it will be used later too
         ArrayList<Element> Br = new ArrayList<>();
         for (int i=0; i<DLIN; i++) {
-            Element Bri = msk.B.get(i).duplicate();
-            Bri.mul(r.get(i));
+            Element Bri = msk.B.get(i).duplicate().mul(r.get(i));
             Br.add(Bri);
         }
         Br.add(sum);    // the last term is r1 + r2
@@ -117,8 +116,7 @@ public class FAME {
         // now compute [Br]_2
         ArrayList<Element> K_0 = new ArrayList<>();
         for (int i=0; i<DLIN+1; i++) {
-            Element hBr = msk.h.duplicate();
-            hBr.powZn(Br.get(i));
+            Element hBr = msk.h.duplicate().powZn(Br.get(i));
             K_0.add(hBr);
         }
 
@@ -151,9 +149,7 @@ public class FAME {
             }
             Element minus_sigma_attr = sigma_attr.duplicate();
             minus_sigma_attr.mul(-1);                           // -σ
-            Element g_minus_sigma = g.duplicate();
-            g_minus_sigma.powZn(minus_sigma_attr);              // g ^ (-σ)
-            key.add(g_minus_sigma);
+            key.add(g.duplicate().powZn(minus_sigma_attr));     // g ^ (-σ)
             K.put(attr, key);
         }
 
